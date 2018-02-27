@@ -122,31 +122,37 @@ class MysqlBackup extends Object {
 		$sql = 'SELECT * FROM ' . $tableName;
 		$cmd = Yii::$app->db->createCommand ( $sql );
 		$dataReader = $cmd->query ();
-		
+
 		if ($this->fp)
-			$this->writeComment ( 'TABLE DATA ' . $tableName );
-		
+		$this->writeComment ( 'TABLE DATA ' . $tableName );
+
 		foreach ( $dataReader as $data ) {
 			$itemNames = array_keys ( $data );
 			$itemNames = array_map ( "addslashes", $itemNames );
 			$items = join ( '`,`', $itemNames );
 			$itemValues = array_values ( $data );
-			$itemValues = array_map ( "addslashes", $itemValues );
-			$valueString = join ( "','", $itemValues );
-			$valueString = "('" . $valueString . "'),";
+			$valueString = '';
+			foreach($itemValues as $val) {
+				if($val === null){
+				  $valueString .= "NULL,";
+				} else{
+				  $valueString .= "'$val',";
+				}
+			}
+			$valueString = rtrim($valueString, ',');
+			$valueString = '(' . $valueString . ')';
 			$values = "\n" . $valueString;
-			
+
 			if ($values != "") {
-				$data_string = "INSERT INTO `$tableName` (`$items`) VALUES" . rtrim ( $values, "," ) . ";;;" . PHP_EOL;
-				if ($this->fp)
-					fwrite ( $this->fp, $data_string );
+				$data_string = "INSERT INTO `$tableName` (`$items`) VALUES" . $values . ";;;" . PHP_EOL;
+			if ($this->fp)
+			  fwrite ( $this->fp, $data_string );
 			}
 		}
-		
 		if ($this->fp)
 			fflush ( $this->fp );
 		return true;
-	}
+		}
 	protected function getPath() {
 		$this->_path = Yii::$app->basePath . '/db/';
 		if (! file_exists ( $this->_path )) {
